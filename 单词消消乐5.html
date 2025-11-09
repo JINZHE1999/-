@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>单词消消乐</title>
+  
+  <style>
+    /* 保留原有样式，新增音效区域样式 */
+    .audio-controls {
+      margin: 20px 0;
+      padding: 15px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .audio-item {
+      display: flex;
+      align-items: center;
+      margin: 10px 0;
+      gap: 10px;
+    }
+    
+    .audio-label {
+      color: #666;
+      min-width: 120px;
+    }
+    
+    .audio-btn {
+      padding: 6px 12px;
+      background: #673ab7;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .audio-status {
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    /* 原有样式保持不变 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+    
+    body {
+      background: #f9f9f9;
+      padding: 20px;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    
+    .menu-container {
+      padding: 15px;
+      margin: 10px 0;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    .menu-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background: #00bfa5;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+      position: relative;
+      z-index: 10;
+    }
+    
+    .menu-btn:hover {
+      background: #00a893;
+    }
+    
+    .start-btn {
+      background: #ff4081;
+    }
+    
+    .start-btn:hover {
+      background: #e91e63;
+    }
+    
+    .abort-btn {
+      background: #f44336;
+      display: none;
+    }
+    
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+    
+    #word-count {
+      flex: 1;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      appearance: none;
+      cursor: pointer;
+    }
+    
+    #word-count::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #673ab7;
+      cursor: pointer;
+    }
+    
+    #count-value {
+      min-width: 50px;
+      text-align: center;
+    }
+    
+    .timer-container {
+      margin: 15px 0;
+      font-size: 1.2rem;
+    }
+    
+    #word-panel {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      min-height: 300px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 15px;
+    }
+    
+    .word-card {
+      border-radius: 8px;
+      padding: 20px 10px;
+      color: white;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+      position: relative;
+      z-index: 1;
+    }
+    
+    .word-card:hover {
+      transform: scale(1.05);
+    }
+    
+    .color-pink { background: #ff4081; }
+    .color-green { background: #00bfa5; }
+    .color-purple { background: #673ab7; }
+    .color-orange { background: #ff9800; }
+    .color-brown { background: #795548; }
+    .color-blue { background: #2196f3; }
+    .color-red { background: #f44336; }
+    
+    .hint-text {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #888;
+      padding: 30px 0;
+    }
+    
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    
+    .modal-backdrop.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+    }
+
+    @keyframes match {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2) rotate(5deg); opacity: 0.8; }
+      100% { transform: scale(0); opacity: 0; visibility: hidden; }
+    }
+    
+    .match-animation {
+      animation: match 0.6s forwards;
+    }
+
+    @keyframes nomatch {
+      0%, 100% { box-shadow: none; }
+      50% { box-shadow: 0 0 0 8px rgba(255, 64, 129, 0.5); }
+    }
+    
+    .nomatch-animation {
+      animation: nomatch 0.5s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>单词消消乐</h1>
+    
+    <!-- 单词表管理按钮 -->
+    <div class="menu-container">
+      <button id="manage-words-btn" class="menu-btn" onclick="showWordListModal()">单词表管理</button>
+    </div>
+    
+    <!-- 游戏菜单区域 -->
+    <div class="menu-container">
+      <div class="slider-container">
+        <label for="word-count">单词数量：</label>
+        <input type="range" id="word-count" min="5" max="50" value="10">
+        <span id="count-value">10对</span>
+      </div>
+      <label for="import-words" class="menu-btn" style="cursor: pointer;">导入词表</label>
+      <input type="file" id="import-words" accept=".csv" style="display: none;">
+      <button id="start-game" class="menu-btn start-btn" onclick="startGame()">开始游戏</button>
+      <button id="abort-game" class="menu-btn abort-btn" onclick="abortGame()">中止游戏</button>
+    </div>
+    
+    <!-- 音效控制区域 -->
+    <div class="audio-controls">
+      <div class="audio-item">
+        <span class="audio-label">成功提示音：</span>
+        <button class="audio-btn" id="success-audio-btn">上传音效</button>
+        <input type="file" id="success-audio-upload" accept="audio/*" style="display: none;">
+        <span class="audio-status" id="success-audio-status">未设置</span>
+      </div>
+      <div class="audio-item">
+        <span class="audio-label">失败提示音：</span>
+        <button class="audio-btn" id="error-audio-btn">上传音效</button>
+        <input type="file" id="error-audio-upload" accept="audio/*" style="display: none;">
+        <span class="audio-status" id="error-audio-status">未设置</span>
+      </div>
+    </div>
+    
+    <div class="timer-container">
+      <p id="timer">耗时：0 秒</p>
+    </div>
+    
+    <div id="word-panel">
+      <div class="hint-text">
+        <p>请导入词表并点击开始游戏</p>
+        <p style="font-size: 0.9rem; margin-top: 5px;">词表应为CSV格式，第一列是单词，第二列是拼音</p>
+      </div>
+    </div>
+    
+    <!-- 单词表管理模态框 -->
+    <div id="word-list-modal" class="modal-backdrop">
+      <div class="modal-content">
+        <h3>单词表管理</h3>
+        <button class="menu-btn" style="margin:10px 0;" onclick="showEditModal(-1)">添加新单词对</button>
+        <table border="1" width="100%" id="word-table">
+          <thead>
+            <tr>
+              <th>单词</th>
+              <th>拼音</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="word-table-body">
+            <tr><td colspan="3" style="text-align:center;">暂无单词</td></tr>
+          </tbody>
+        </table>
+        <button class="menu-btn" style="margin-top:10px;float:right;" onclick="hideWordListModal()">关闭</button>
+      </div>
+    </div>
+    
+    <!-- 编辑单词模态框 -->
+    <div id="edit-word-modal" class="modal-backdrop">
+      <div class="modal-content">
+        <h3>编辑单词对</h3>
+        <input type="text" id="edit-word" placeholder="单词" style="width:100%;padding:8px;margin:5px 0;">
+        <input type="text" id="edit-pinyin" placeholder="拼音" style="width:100%;padding:8px;margin:5px 0;">
+        <input type="hidden" id="edit-index" value="-1">
+        <div style="text-align:right;margin-top:10px;">
+          <button class="menu-btn" onclick="hideEditModal()">取消</button>
+          <button class="menu-btn start-btn" onclick="saveWord()">保存</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 音频元素（隐藏） -->
+    <audio id="success-sound" preload="auto"></audio>
+    <audio id="error-sound" preload="auto"></audio>
+  </div>
+
+  <script>
+    // 全局变量
+    let words = JSON.parse(localStorage.getItem('wordGameWords') || '[]');
+    let gameWords = [];
+    let shuffledCards = [];
+    let selectedCard = null;
+    let timer = null;
+    let seconds = 0;
+    let isPlaying = false;
+    // 音效状态
+    let soundStates = {
+      success: false,
+      error: false
+    };
+
+    // DOM元素
+    const wordListModal = document.getElementById('word-list-modal');
+    const editWordModal = document.getElementById('edit-word-modal');
+    const wordPanel = document.getElementById('word-panel');
+    const timerEl = document.getElementById('timer');
+    const startBtn = document.getElementById('start-game');
+    const abortBtn = document.getElementById('abort-game');
+    const countValue = document.getElementById('count-value');
+    // 音效元素
+    const successSound = document.getElementById('success-sound');
+    const errorSound = document.getElementById('error-sound');
+    const successAudioBtn = document.getElementById('success-audio-btn');
+    const errorAudioBtn = document.getElementById('error-audio-btn');
+    const successAudioUpload = document.getElementById('success-audio-upload');
+    const errorAudioUpload = document.getElementById('error-audio-upload');
+    const successAudioStatus = document.getElementById('success-audio-status');
+    const errorAudioStatus = document.getElementById('error-audio-status');
+
+    // 页面加载完成后执行
+    window.onload = function() {
+      renderWordTable();
+      loadSoundSettings(); // 加载保存的音效设置
+      setupAudioEvents();  // 设置音效事件
+      console.log('页面加载完成，所有功能已就绪');
+    };
+
+    // 音效相关函数
+    function setupAudioEvents() {
+      // 成功音效上传按钮
+      successAudioBtn.addEventListener('click', () => {
+        successAudioUpload.click();
+      });
+      
+      // 失败音效上传按钮
+      errorAudioBtn.addEventListener('click', () => {
+        errorAudioUpload.click();
+      });
+      
+      // 处理成功音效上传
+      successAudioUpload.addEventListener('change', (e) => {
+        handleAudioUpload(e, 'success');
+      });
+      
+      // 处理失败音效上传
+      errorAudioUpload.addEventListener('change', (e) => {
+        handleAudioUpload(e, 'error');
+      });
+    }
+
+    function handleAudioUpload(e, type) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      // 验证文件类型
+      if (!file.type.startsWith('audio/')) {
+        alert('请上传音频文件');
+        return;
+      }
+      
+      const audioEl = type === 'success' ? successSound : errorSound;
+      const statusEl = type === 'success' ? successAudioStatus : errorAudioStatus;
+      
+      // 创建音频URL
+      const audioUrl = URL.createObjectURL(file);
+      audioEl.src = audioUrl;
+      
+      // 保存到本地存储
+      localStorage.setItem(`wordGame${type.charAt(0).toUpperCase() + type.slice(1)}Sound`, audioUrl);
+      
+      // 更新状态
+      soundStates[type] = true;
+      statusEl.textContent = `已设置：${file.name}`;
+      
+      // 播放测试音
+      audioEl.play().catch(err => {
+        console.log('自动播放失败（浏览器限制）：', err);
+        alert('音效设置成功，点击卡片时会播放');
+      });
+      
+      // 清空输入，允许重复上传同一文件
+      e.target.value = '';
+    }
+
+    function loadSoundSettings() {
+      // 加载成功音效
+      const savedSuccessSound = localStorage.getItem('wordGameSuccessSound');
+      if (savedSuccessSound) {
+        successSound.src = savedSuccessSound;
+        soundStates.success = true;
+        successAudioStatus.textContent = '已设置';
+      }
+      
+      // 加载失败音效
+      const savedErrorSound = localStorage.getItem('wordGameErrorSound');
+      if (savedErrorSound) {
+        errorSound.src = savedErrorSound;
+        soundStates.error = true;
+        errorAudioStatus.textContent = '已设置';
+      }
+    }
+
+    function playSuccessSound() {
+      if (soundStates.success) {
+        try {
+          // 重置播放位置并播放
+          successSound.currentTime = 0;
+          successSound.play().catch(err => {
+            console.log('播放成功音效失败：', err);
+          });
+        } catch (error) {
+          console.log('成功音效播放错误：', error);
+        }
+      }
+    }
+
+    function playErrorSound() {
+      if (soundStates.error) {
+        try {
+          // 重置播放位置并播放
+          errorSound.currentTime = 0;
+          errorSound.play().catch(err => {
+            console.log('播放失败音效失败：', err);
+          });
+        } catch (error) {
+          console.log('失败音效播放错误：', error);
+        }
+      }
+    }
+
+    // 单词表管理相关函数（保持不变）
+    function showWordListModal() {
+      wordListModal.classList.add('show');
+    }
+
+    function hideWordListModal() {
+      wordListModal.classList.remove('show');
+    }
+
+    function showEditModal(index) {
+      document.getElementById('edit-index').value = index;
+      if (index === -1) {
+        document.getElementById('edit-word').value = '';
+        document.getElementById('edit-pinyin').value = '';
+      } else {
+        const [word, pinyin] = words[index];
+        document.getElementById('edit-word').value = word;
+        document.getElementById('edit-pinyin').value = pinyin;
+      }
+      editWordModal.classList.add('show');
+    }
+
+    function hideEditModal() {
+      editWordModal.classList.remove('show');
+    }
+
+    function saveWord() {
+      const word = document.getElementById('edit-word').value.trim();
+      const pinyin = document.getElementById('edit-pinyin').value.trim();
+      const index = parseInt(document.getElementById('edit-index').value);
+
+      if (!word || !pinyin) {
+        alert('单词和拼音不能为空');
+        return;
+      }
+
+      if (index === -1) {
+        words.push([word, pinyin]);
+      } else {
+        words[index] = [word, pinyin];
+      }
+
+      localStorage.setItem('wordGameWords', JSON.stringify(words));
+      renderWordTable();
+      hideEditModal();
+    }
+
+    function deleteWord(index) {
+      if (confirm(`确定删除"${words[index][0]}"吗？`)) {
+        words.splice(index, 1);
+        localStorage.setItem('wordGameWords', JSON.stringify(words));
+        renderWordTable();
+      }
+    }
+
+    function renderWordTable() {
+      const tbody = document.getElementById('word-table-body');
+      if (words.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">暂无单词</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = '';
+      words.forEach(([word, pinyin], index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${word}</td>
+          <td>${pinyin}</td>
+          <td>
+            <button class="menu-btn" style="background:#2196f3;padding:3px 8px;" onclick="showEditModal(${index})">编辑</button>
+            <button class="menu-btn" style="background:#f44336;padding:3px 8px;" onclick="deleteWord(${index})">删除</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 游戏核心函数（添加音效调用）
+    function startGame() {
+      if (words.length === 0) {
+        alert('请先添加或导入单词表');
+        return;
+      }
+
+      const wordCount = parseInt(document.getElementById('word-count').value);
+      isPlaying = true;
+      seconds = 0;
+      startBtn.style.display = 'none';
+      abortBtn.style.display = 'inline-block';
+
+      gameWords = [...words].sort(() => Math.random() - 0.5).slice(0, wordCount);
+      shuffledCards = [];
+      gameWords.forEach(([word, pinyin]) => {
+        shuffledCards.push({ text: word.trim(), pair: pinyin.trim(), matched: false });
+        shuffledCards.push({ text: pinyin.trim(), pair: word.trim(), matched: false });
+      });
+      shuffledCards.sort(() => Math.random() - 0.5);
+
+      renderWordCards();
+      startTimer();
+      console.log('游戏开始，当前单词对:', gameWords);
+    }
+
+    function abortGame() {
+      if (confirm('确定要中止游戏吗？')) {
+        resetGame();
+      }
+    }
+
+    function resetGame() {
+      isPlaying = false;
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      startBtn.style.display = 'inline-block';
+      abortBtn.style.display = 'none';
+      wordPanel.innerHTML = `
+        <div class="hint-text">
+          <p>已加载 ${words.length} 对单词</p>
+          <p style="font-size: 0.9rem; margin-top: 5px;">点击"开始游戏"按钮开始挑战</p>
+        </div>
+      `;
+    }
+
+    function startTimer() {
+      timer = setInterval(() => {
+        seconds++;
+        timerEl.textContent = `耗时：${seconds} 秒`;
+      }, 1000);
+    }
+
+    function renderWordCards() {
+      wordPanel.innerHTML = '';
+      shuffledCards.forEach((card, index) => {
+        const cardEl = document.createElement('div');
+        cardEl.className = `word-card ${getRandomColor()}`;
+        cardEl.textContent = card.text;
+        cardEl.dataset.index = index;
+        cardEl.addEventListener('click', () => handleCardClick(index, cardEl));
+        wordPanel.appendChild(cardEl);
+      });
+    }
+
+    function getRandomColor() {
+      const colors = ['color-pink', 'color-green', 'color-purple', 'color-orange', 'color-brown', 'color-blue', 'color-red'];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    // 核心修复：添加音效播放
+    function handleCardClick(index, cardEl) {
+      const card = shuffledCards[index];
+      
+      if (card.matched || cardEl.classList.contains('match-animation')) {
+        return;
+      }
+
+      if (!selectedCard) {
+        selectedCard = { index, cardEl, card };
+        cardEl.style.boxShadow = '0 0 0 4px white, 0 4px 12px rgba(0,0,0,0.2)';
+        cardEl.style.transform = 'scale(1.1)';
+      } else {
+        const firstCard = selectedCard;
+        firstCard.cardEl.style.boxShadow = '';
+        firstCard.cardEl.style.transform = '';
+
+        const isMatch = 
+          (firstCard.card.text === card.pair) || 
+          (firstCard.card.pair === card.text);
+
+        if (isMatch) {
+          // 播放成功音效
+          playSuccessSound();
+          
+          card.matched = true;
+          firstCard.card.matched = true;
+          cardEl.classList.add('match-animation');
+          firstCard.cardEl.classList.add('match-animation');
+          checkAllMatched();
+        } else {
+          // 播放失败音效
+          playErrorSound();
+          
+          cardEl.classList.add('nomatch-animation');
+          firstCard.cardEl.classList.add('nomatch-animation');
+          setTimeout(() => {
+            cardEl.classList.remove('nomatch-animation');
+            firstCard.cardEl.classList.remove('nomatch-animation');
+          }, 500);
+        }
+
+        selectedCard = null;
+      }
+    }
+
+    function checkAllMatched() {
+      const allMatched = shuffledCards.every(card => card.matched);
+      if (allMatched) {
+        clearInterval(timer);
+        timer = null;
+        startBtn.style.display = 'inline-block';
+        abortBtn.style.display = 'none';
+        alert(`恭喜完成挑战！用时：${seconds} 秒`);
+      }
+    }
+
+    // 单词数量滑块事件
+    document.getElementById('word-count').addEventListener('input', (e) => {
+      countValue.textContent = `${e.target.value}对`;
+    });
+
+    // 导入词表事件
+    document.getElementById('import-words').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const content = event.target.result;
+          let newWords = [];
+          const lines = content.split(/\r\n|\n/);
+          for (let line of lines) {
+            if (line.trim() === '') continue;
+            const parts = line.split(',').map(item => item.trim());
+            if (parts.length >= 2) {
+              const word = parts[0];
+              const pinyin = parts[1];
+              if (word && pinyin) {
+                newWords.push([word, pinyin]);
+              }
+            }
+          }
+
+          if (newWords.length > 0) {
+            words = newWords;
+            localStorage.setItem('wordGameWords', JSON.stringify(words));
+            renderWordTable();
+            alert(`成功导入 ${newWords.length} 对单词`);
+          } else {
+            alert('未找到有效的单词对，请检查文件格式');
+          }
+        } catch (error) {
+          console.error('导入失败:', error);
+          alert('导入失败，请检查文件格式');
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+  </script>
+</body>
+</html>
